@@ -131,6 +131,7 @@ If you encounter any issues or have feature requests, please:
 1. Check existing [Issues](https://github.com/yourusername/yt-bookmark-extension-ClipMark/issues)
 2. Create a new issue with detailed description
 3. Include screenshots if applicable
+   contact- rishabhshan7@gmail.com OR rishabh92056@gmail.com
 
 ---
 
