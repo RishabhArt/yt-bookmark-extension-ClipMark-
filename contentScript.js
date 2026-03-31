@@ -63,45 +63,48 @@
 
   // 🔹 Handle bookmark click
   const addNewBookmarkEventHandler = async () => {
-    console.log("Button clicked");
+  console.log("Button clicked");
 
-    if (!youtubePlayer) {
-      console.log("Player not found");
-      return;
-    }
+  const player = document.querySelector("video");
 
-    // 🔥 Ensure correct video ID
-    if (!currentVideo) {
-      const urlParams = new URLSearchParams(window.location.search);
-      currentVideo = urlParams.get("v");
-      console.log("Fixing video ID:", currentVideo);
-    }
+  if (!player) {
+    console.log("Player not found");
+    return;
+  }
 
-    const currentTime = youtubePlayer.currentTime;
-    console.log("Current Time:", currentTime);
+  // 🔥 Ensure video ID
+  if (!currentVideo) {
+    const urlParams = new URLSearchParams(window.location.search);
+    currentVideo = urlParams.get("v");
+  }
 
-    const newBookmark = {
-      time: currentTime,
-      desc: "Bookmark at " + getTime(currentTime),
-      note: "",
-    };
+  const currentTime = player.currentTime;
 
-    currentVideoBookmarks = await fetchBookmarks();
+  if (!currentTime || currentTime === 0) {
+    console.log("Time not ready yet");
+    return;
+  }
 
-    const updatedBookmarks = [...currentVideoBookmarks, newBookmark].sort(
-      (a, b) => a.time - b.time,
-    );
+  console.log("Current Time:", currentTime);
 
-    chrome.storage.sync.set({
-      [currentVideo]: JSON.stringify(updatedBookmarks),
-    });
-
-    console.log("Saved under key:", currentVideo);
-    console.log("Updated bookmarks:", updatedBookmarks);
-
-    // ✅ Replace alert with toast
-    showToast();
+  const newBookmark = {
+    time: currentTime,
+    desc: "Bookmark at " + getTime(currentTime),
+    note: "",
   };
+
+  currentVideoBookmarks = await fetchBookmarks();
+
+  const updatedBookmarks = [...currentVideoBookmarks, newBookmark].sort(
+    (a, b) => a.time - b.time
+  );
+
+  chrome.storage.sync.set({
+    [currentVideo]: JSON.stringify(updatedBookmarks),
+  });
+
+  showToast();
+};
 
   // 🔹 Handle new video load
   const newVideoLoaded = async () => {
