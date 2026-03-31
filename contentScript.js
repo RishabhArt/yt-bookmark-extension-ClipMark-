@@ -20,12 +20,22 @@
 
   // 🔹 Fetch bookmarks from storage
   const fetchBookmarks = () => {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get([currentVideo], (obj) => {
-        resolve(obj[currentVideo] ? JSON.parse(obj[currentVideo]) : []);
-      });
+  return new Promise((resolve) => {
+    if (!currentVideo) {
+      const urlParams = new URLSearchParams(window.location.search);
+      currentVideo = urlParams.get("v");
+    }
+
+    if (!currentVideo) {
+      resolve([]); // prevent crash
+      return;
+    }
+
+    chrome.storage.sync.get([currentVideo], (obj) => {
+      resolve(obj[currentVideo] ? JSON.parse(obj[currentVideo]) : []);
     });
-  };
+  });
+};
 
   // 🔹 Toast notification (NEW)
   const showToast = () => {
@@ -96,6 +106,7 @@
   // 🔹 Handle new video load
   const newVideoLoaded = async () => {
     const bookmarkBtnExists = document.querySelector(".bookmark-btn");
+    if (bookmarkBtnExists) return;
 
     currentVideoBookmarks = await fetchBookmarks();
 
@@ -146,7 +157,9 @@
       console.log("New video loaded:", currentVideo);
       newVideoLoaded();
     } else if (type === "PLAY") {
-      youtubePlayer.currentTime = value;
+      if (youtubePlayer) {
+    youtubePlayer.currentTime = value;
+  }
     } else if (type === "DELETE") {
       currentVideoBookmarks = currentVideoBookmarks.filter(
         (b) => b.time != value,

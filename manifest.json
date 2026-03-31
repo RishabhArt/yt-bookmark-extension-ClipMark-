@@ -1,18 +1,24 @@
 {
-  "name": "My YT Bookmarks",
+  "manifest_version": 3,
+
+  "name": "ClipMark - YouTube Smart Bookmarks",
   "version": "0.1.0",
-  "description": "Saving timestamps in YT videos",
+  "description": "Save, organize, and manage YouTube timestamps with notes & AI",
+
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://*.youtube.com/*"],
+
   "background": {
     "service_worker": "background.js"
   },
+
   "content_scripts": [
     {
       "matches": ["https://*.youtube.com/*"],
       "js": ["contentScript.js"]
     }
   ],
+
   "web_accessible_resources": [
     {
       "resources": [
@@ -24,14 +30,20 @@
       "matches": ["https://*.youtube.com/*"]
     }
   ],
+
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+
   "action": {
     "default_icon": {
-      "16": "assets/ext-icon.png",
-      "24": "assets/ext-icon.png",
-      "32": "assets/ext-icon.png"
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
     },
-    "default_title": "My YT Bookmarks",
+    "default_title": "ClipMark",
     "default_popup": "popup.html"
-  },
-  "manifest_version": 3
+  }
 }

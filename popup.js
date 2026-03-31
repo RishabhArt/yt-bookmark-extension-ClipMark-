@@ -1,15 +1,48 @@
 import { getActiveTabURL } from "./utils.js";
-// 🔹 Store bookmarks globally (for search/filter)
+
+// 🔹 Global bookmarks (for search)
 let globalBookmarks = [];
 
-// 🔹 Add bookmark UI element
+// 🔐 SAFE STORAGE GET
+const safeStorageGet = (key) => {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.sync.get([key], (obj) => {
+        if (chrome.runtime.lastError) {
+          console.warn("Storage error:", chrome.runtime.lastError);
+          resolve([]);
+        } else {
+          resolve(obj[key] ? JSON.parse(obj[key]) : []);
+        }
+      });
+    } catch (e) {
+      console.warn("Context invalidated (get):", e);
+      resolve([]);
+    }
+  });
+};
+
+// 🔐 SAFE STORAGE SET
+const safeStorageSet = (data) => {
+  try {
+    chrome.storage.sync.set(data, () => {
+      if (chrome.runtime.lastError) {
+        console.warn("Storage set error:", chrome.runtime.lastError);
+      }
+    });
+  } catch (e) {
+    console.warn("Context invalidated (set):", e);
+  }
+};
+
+// 🔹 Add bookmark UI
 const addNewBookmark = (bookmarks, bookmark) => {
   const bookmarkElement = document.createElement("div");
   bookmarkElement.className = "bookmark";
   bookmarkElement.id = "bookmark-" + bookmark.time;
   bookmarkElement.setAttribute("timestamp", bookmark.time);
 
-  // 🔹 Top row (title + controls)
+  // 🔹 Top row
   const topRow = document.createElement("div");
   topRow.className = "bookmark-top";
 
@@ -18,7 +51,7 @@ const addNewBookmark = (bookmarks, bookmark) => {
   title.contentEditable = true;
   title.textContent = `⏱ ${bookmark.desc}`;
 
-  // 🔹 Save renamed title
+  // 🔹 Rename
   title.addEventListener("blur", async () => {
     bookmark.desc = title.innerText.replace("⏱ ", "");
 
@@ -26,19 +59,18 @@ const addNewBookmark = (bookmarks, bookmark) => {
       active: true,
       currentWindow: true,
     });
+
     const urlParams = new URLSearchParams(tab.url.split("?")[1]);
     const currentVideo = urlParams.get("v");
 
-    chrome.storage.sync.get([currentVideo], (data) => {
-      let bookmarks = data[currentVideo] ? JSON.parse(data[currentVideo]) : [];
+    const bookmarks = await safeStorageGet(currentVideo);
 
-      bookmarks = bookmarks.map((b) =>
-        b.time == bookmark.time ? bookmark : b,
-      );
+    const updated = bookmarks.map((b) =>
+      b.time == bookmark.time ? bookmark : b
+    );
 
-      chrome.storage.sync.set({
-        [currentVideo]: JSON.stringify(bookmarks),
-      });
+    safeStorageSet({
+      [currentVideo]: JSON.stringify(updated),
     });
   });
 
@@ -51,7 +83,7 @@ const addNewBookmark = (bookmarks, bookmark) => {
   topRow.appendChild(title);
   topRow.appendChild(controls);
 
-  // 🔹 Notes input
+  // 🔹 Notes
   const note = document.createElement("input");
   note.className = "bookmark-note";
   note.placeholder = "Add note...";
@@ -64,19 +96,18 @@ const addNewBookmark = (bookmarks, bookmark) => {
       active: true,
       currentWindow: true,
     });
+
     const urlParams = new URLSearchParams(tab.url.split("?")[1]);
     const currentVideo = urlParams.get("v");
 
-    chrome.storage.sync.get([currentVideo], (data) => {
-      let bookmarks = data[currentVideo] ? JSON.parse(data[currentVideo]) : [];
+    const bookmarks = await safeStorageGet(currentVideo);
 
-      bookmarks = bookmarks.map((b) =>
-        b.time == bookmark.time ? bookmark : b,
-      );
+    const updated = bookmarks.map((b) =>
+      b.time == bookmark.time ? bookmark : b
+    );
 
-      chrome.storage.sync.set({
-        [currentVideo]: JSON.stringify(bookmarks),
-      });
+    safeStorageSet({
+      [currentVideo]: JSON.stringify(updated),
     });
   });
 
@@ -86,7 +117,7 @@ const addNewBookmark = (bookmarks, bookmark) => {
   bookmarks.appendChild(bookmarkElement);
 };
 
-// 🔹 Render bookmarks (with search)
+// 🔹 Render bookmarks (search enabled)
 const viewBookmarks = (currentBookmarks = []) => {
   globalBookmarks = currentBookmarks;
 
@@ -94,7 +125,7 @@ const viewBookmarks = (currentBookmarks = []) => {
     document.getElementById("search")?.value?.toLowerCase() || "";
 
   const filtered = currentBookmarks.filter((b) =>
-    b.desc.toLowerCase().includes(searchValue),
+    b.desc.toLowerCase().includes(searchValue)
   );
 
   const bookmarksElement = document.getElementById("bookmarks");
@@ -105,26 +136,32 @@ const viewBookmarks = (currentBookmarks = []) => {
       addNewBookmark(bookmarksElement, bookmark);
     });
   } else {
-    bookmarksElement.innerHTML = '<i class="row">No bookmarks found</i>';
+    bookmarksElement.innerHTML =
+      '<i class="row">No bookmarks found</i>';
   }
 };
 
-// 🔹 Play bookmark
+// 🔹 Play
 const onPlay = async (e) => {
-  const bookmarkTime = e.target.closest(".bookmark").getAttribute("timestamp");
+  const bookmarkTime =
+    e.target.closest(".bookmark").getAttribute("timestamp");
 
   const [tab] = await chrome.tabs.query({
     active: true,
     currentWindow: true,
   });
 
-  chrome.tabs.sendMessage(tab.id, {
-    type: "PLAY",
-    value: bookmarkTime,
-  });
+  try {
+    chrome.tabs.sendMessage(tab.id, {
+      type: "PLAY",
+      value: bookmarkTime,
+    });
+  } catch (e) {
+    console.warn("SendMessage failed:", e);
+  }
 };
 
-// 🔹 Delete bookmark
+// 🔹 Delete
 const onDelete = async (e) => {
   const bookmarkEl = e.target.closest(".bookmark");
   const bookmarkTime = bookmarkEl.getAttribute("timestamp");
@@ -136,19 +173,23 @@ const onDelete = async (e) => {
     currentWindow: true,
   });
 
-  chrome.tabs.sendMessage(
-    tab.id,
-    {
-      type: "DELETE",
-      value: bookmarkTime,
-    },
-    (updatedBookmarks) => {
-      viewBookmarks(updatedBookmarks);
-    },
-  );
+  try {
+    chrome.tabs.sendMessage(
+      tab.id,
+      {
+        type: "DELETE",
+        value: bookmarkTime,
+      },
+      (updatedBookmarks) => {
+        viewBookmarks(updatedBookmarks);
+      }
+    );
+  } catch (e) {
+    console.warn("Delete message failed:", e);
+  }
 };
 
-// 🔹 Add play/delete icons
+// 🔹 Icons
 const setBookmarkAttributes = (src, eventListener, parent) => {
   const control = document.createElement("img");
   control.src = "assets/" + src + ".png";
@@ -175,38 +216,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   const urlParams = new URLSearchParams(tab.url.split("?")[1]);
   const currentVideo = urlParams.get("v");
 
-  chrome.storage.sync.get([currentVideo], (data) => {
-    const bookmarks = data[currentVideo] ? JSON.parse(data[currentVideo]) : [];
+  const bookmarks = await safeStorageGet(currentVideo);
 
-    console.log("Bookmarks loaded:", bookmarks);
+  console.log("Bookmarks loaded:", bookmarks);
 
-    viewBookmarks(bookmarks);
-  });
+  viewBookmarks(bookmarks);
 
-  // 🔍 Search listener
+  // 🔍 Search
   document.getElementById("search").addEventListener("input", () => {
     viewBookmarks(globalBookmarks);
   });
 
   // 📤 Export
   document.getElementById("export").addEventListener("click", async () => {
-    chrome.storage.sync.get([currentVideo], (data) => {
-      const bookmarks = data[currentVideo]
-        ? JSON.parse(data[currentVideo])
-        : [];
+    const bookmarks = await safeStorageGet(currentVideo);
 
-      const text = bookmarks
-        .map((b) => `${b.desc} - ${b.note || ""}`)
-        .join("\n");
+    const text = bookmarks
+      .map((b) => `${b.desc} - ${b.note || ""}`)
+      .join("\n");
 
-      const blob = new Blob([text], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
 
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "bookmarks.txt";
-      a.click();
-    });
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bookmarks.txt";
+    a.click();
   });
 
   // 🌙 Dark mode
