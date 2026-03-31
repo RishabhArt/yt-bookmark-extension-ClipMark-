@@ -1,0 +1,24 @@
+<link href="popup.css" rel="stylesheet" type="text/css" />
+<script type="module" src="popup.js"></script>
+
+<div class="container">
+  <!-- 🔹 Header -->
+  <div class="title">Your bookmarks for this video</div>
+
+  <!-- 🔍 Search -->
+  <input
+    type="text"
+    id="search"
+    class="search"
+    placeholder="Search bookmarks..."
+  />
+
+  <!-- 🔘 Action Buttons -->
+  <div class="actions">
+    <button id="export" class="btn">Export</button>
+    <button id="darkToggle" class="btn secondary">Dark</button>
+  </div>
+
+  <!-- 🔹 Bookmarks List -->
+  <div class="bookmarks" id="bookmarks"></div>
+</div>
